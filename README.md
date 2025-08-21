@@ -30,5 +30,5 @@ Or to run the application in dev mode, use
 fastapi dev app/main.py
 
 For background running:
-uvicorn app.main:app --host 0.0.0.0 --port 80
+uvicorn app.main:app --host localhost --port 8000
 ```
