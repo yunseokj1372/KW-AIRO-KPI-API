@@ -1,4 +1,3 @@
-from app.db.connection import get_connection
 from app.utils.process import validate_date_format
 import oracledb
 import pandas as pd
@@ -41,7 +40,40 @@ def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection
             sanitized_tickets.append(ticket_int)
         except ValueError:
             raise ValueError(f"Invalid ticket number: {ticket}")
+            
     
     if not sanitized_tickets:
         # Return empty DataFrame if no valid tickets
         return pd.DataFrame()
+    
+    # Create parameterized query with proper placeholders for IN clause
+    placeholders = ','.join([f':ticket_{i}' for i in range(len(sanitized_tickets))])
+    
+    query = f"""
+    SELECT t.ticketno AS redotktno ,wh.nickname AS redoloc,t.ACCOUNTNO AS redoacct
+    ,t.ASSIGNDTIME AS redoassigndate
+    , t.completedtime AS redocalccomplete
+    ,to_char(t.COMPLETEDTIME, 'mm/dd/yyyy') AS redocompletedate ,to_char(t.COMPLETEDTIME, 'yyyy_mm') AS redocompletemonth
+    ,t.TECHID , U.FirstName || ' ' || U.LastName AS redotechname
+    FROM opticket t
+    INNER JOIN nspwarehouses wh ON wh.warehouseid = t.warehouseid
+    INNER JOIN opbase b ON b.id = t.id
+    INNER JOIN nspusers u ON t.techid = u.userid
+    WHERE t.COMPLETEDTIME BETWEEN TO_DATE(:start_date, 'YYYY-MM-DD') AND TO_DATE(:end_date, 'YYYY-MM-DD')
+    AND t.vendorid = 1
+    AND t.systemid = 2
+    AND t.servicetype = 'IH'
+    AND t.TICKETNO IN ({placeholders})
+    """
+    
+    # Build parameters dictionary
+    params = {
+        'start_date': start_date,
+        'end_date': end_date
+    }
+    
+    # Add ticket parameters
+    for i, ticket in enumerate(sanitized_tickets):
+        params[f'ticket_{i}'] = ticket
+    
+    return pd.read_sql(query, con=connection, params=params)
