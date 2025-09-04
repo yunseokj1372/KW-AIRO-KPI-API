@@ -8,22 +8,45 @@ def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
     
     query = """
-    SELECT t.ticketno ,wh.nickname,t.ACCOUNTNO , t.buildername, t.PRODUCTTYPE, t.SERVICETYPE , t.ACCOUNTNO ,  t.modelno, t.SERIALNO, b.UPDATEDBY
-    , DECODE(t.vendorid, 0, 'Unknown', 1, 'GSPN', 2, 'SQ', 3, 'BF', 4, 'Asurion', 5, 'AIG', 6, 'Assurant', 7, 'ST', 8, 'LW') as VendorID
-    , DECODE(t.systemid, 0, 'None', 1, 'IT', 2, 'GSPN', 3, 'SQ', 4, 'BF', 5, 'SVC_BENCH', 6, 'SVC_POWER') as SystemID
-    ,t.WARRANTYSTATUS
-    ,to_char(t.ASSIGNDTIME , 'mm/dd/yyyy') AS assigndate,to_char(t.APTSTARTDTIME , 'mm/dd/yyyy') AS apptdate
-    ,to_char(t.issuedtime, 'mm/dd/yyyy') AS Opendate
-    ,to_char(t.COMPLETEDTIME, 'mm/dd/yyyy') AS completedate ,to_char(t.COMPLETEDTIME, 'yyyy_mm')AS completemonth, b.status, t.BRAND, t.TECHID , U.FirstName || ' ' || U.LastName AS TechName
-    FROM opticket t INNER JOIN nspwarehouses wh ON wh.warehouseid = t.warehouseid INNER JOIN opbase b ON b.id = t.id
+    WITH filtered_tickets AS (
+        SELECT t.* 
+        FROM opticket t
+        WHERE t.COMPLETEDTIME BETWEEN TO_DATE(:start_date, 'YYYY-MM-DD') 
+            AND TO_DATE(:end_date, 'YYYY-MM-DD')
+        AND t.vendorid = 1
+        AND t.systemid = 2
+        AND t.servicetype = 'IH'
+    )
+    SELECT 
+        t.ticketno,
+        wh.nickname,
+        t.ACCOUNTNO,
+        t.buildername,
+        t.PRODUCTTYPE,
+        t.SERVICETYPE,
+        t.modelno,
+        t.SERIALNO,
+        b.UPDATEDBY,
+        CASE t.vendorid 
+            WHEN 0 THEN 'Unknown'
+            WHEN 1 THEN 'GSPN'
+            -- ... other cases ...
+        END as VendorID,
+        t.WARRANTYSTATUS,
+        TO_CHAR(t.ASSIGNDTIME, 'YYYY-MM-DD') AS assigndate,
+        TO_CHAR(t.APTSTARTDTIME, 'YYYY-MM-DD') AS apptdate,
+        TO_CHAR(t.issuedtime, 'YYYY-MM-DD') AS Opendate,
+        TO_CHAR(t.COMPLETEDTIME, 'YYYY-MM-DD') AS completedate,
+        TO_CHAR(t.COMPLETEDTIME, 'YYYY_MM') AS completemonth,
+        b.status,
+        t.BRAND,
+        t.TECHID,
+        U.FirstName || ' ' || U.LastName AS TechName
+    FROM filtered_tickets t
+    INNER JOIN nspwarehouses wh ON wh.warehouseid = t.warehouseid
+    INNER JOIN opbase b ON b.id = t.id
     INNER JOIN nspusers u ON t.techid = u.userid
-    WHERE t.COMPLETEDTIME BETWEEN TO_DATE(:start_date, 'YYYY-MM-DD') AND TO_DATE(:end_date, 'YYYY-MM-DD')
-    AND t.vendorid = 1
-    AND t.systemid = 2
-    AND t.servicetype = 'IH'
     """
-
-    # Use parameterized query
     return pd.read_sql(query, con=connection, params={'start_date': start_date, 'end_date': end_date})
 
 def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection: oracledb.Connection):

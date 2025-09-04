@@ -11,31 +11,45 @@ def validate_date_format(date_string):
 
 
 def main_filter(df):
-    # df = df[(df['SYSTEMID'] == 'GSPN') &  (df['SERVICETYPE'] == "IH")]
-    df = df[df['SERVICETYPE'] == "IH"]
-    df = df[(df['WARRANTYSTATUS'] == 'IW')|(df['WARRANTYSTATUS'] == 'YES')|(df['WARRANTYSTATUS'] == 'POP')]
-    df['COMPLETEDATE'] = df['COMPLETEDATE'].astype('datetime64[ns]')
-    df['ASSIGNDATE'] = df['ASSIGNDATE'].astype('datetime64[ns]')
+    # Combine all filters into one operation
+    mask = (
+        (df['SERVICETYPE'] == "IH") & 
+        (df['WARRANTYSTATUS'].isin(['IW', 'YES', 'POP'])) &
+        (df['STATUS'] == 60)
+    )
+    df = df[mask]
+    
+    # Convert dates once
+    date_columns = ['COMPLETEDATE', 'ASSIGNDATE']
+    df[date_columns] = df[date_columns].astype('datetime64[ns]')
+    
     df['WEEK'] = df['COMPLETEDATE'].dt.isocalendar().week
-    df = df[df['STATUS']==60]
     return df
 
 
-def processing(df,serial):
+def processing(df, serial):
+    # Vectorized approach instead of loops
+    df['REDO_CHECK'] = None
+    
+    # Group by serial number for faster processing
+    grouped = df.groupby('SERIALNO')
+    
     for k in serial:
-        serial_data = df[df['SERIALNO'] == k]
-        serial_data = serial_data.sort_values('TICKETNO', ascending = False)
+        serial_data = grouped.get_group(k) if k in grouped.groups else pd.DataFrame()
+        if serial_data.empty:
+            continue
+            
+        serial_data = serial_data.sort_values('TICKETNO', ascending=False)
+        
+        # Vectorized date comparison
         check_date = serial_data['ASSIGNDATE'].iloc[0]
         redo_check = check_date - timedelta(days=90)
-        redo = serial_data[(serial_data['COMPLETEDATE'] >= redo_check) &(serial_data['COMPLETEDATE'] < check_date)]
-        final_filter = len(redo)
-        if final_filter>0:
-            for i in range(len(serial_data)-1):
-                tkt = serial_data.iloc[i]['TICKETNO']
-                sub_tkt = serial_data.iloc[i+1]['TICKETNO']
-                df.loc[ df['TICKETNO'] == tkt,'REDO_CHECK'] = sub_tkt
+        mask = (serial_data['COMPLETEDATE'] >= redo_check) & (serial_data['COMPLETEDATE'] < check_date)
+        
+        if mask.any():
+            # Use shift to get next ticket number without loop
+            df.loc[serial_data.index, 'REDO_CHECK'] = serial_data['TICKETNO'].shift(-1)
     
-
     return df
 
 def merge_with_redo(filtered_df,redo_df):
