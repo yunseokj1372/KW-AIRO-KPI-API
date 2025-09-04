@@ -24,7 +24,6 @@ router = APIRouter(prefix="/redo", tags=["redo"])
 class RedoInput(BaseModel):
     start_date: str
     end_date: str
-    tickets: list[int]
 
 
 @router.post("/single")
