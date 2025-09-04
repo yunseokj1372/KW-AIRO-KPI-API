@@ -36,7 +36,7 @@ def single_redo(request: RedoInput):
         raise HTTPException(status_code=500, detail="Error connecting to database")
     
     try:
-        df = redo_input(request.start_date, request.end_date, connection)
+        df = redo_input(request.startDate, request.endDate, connection)
     except:
         raise HTTPException(status_code=401, detail="Error retrieving data from database")
     
@@ -56,7 +56,7 @@ def single_redo(request: RedoInput):
         separate_df = filtered_df.dropna(subset=['REDO_CHECK'])
         tupe = tuple(separate_df['REDO_CHECK'].astype(int))
         redo_tupe = tuple(f'{x}' for x in tupe)
-        output = redo_output(redo_tupe, request.start_date, request.end_date, connection)
+        output = redo_output(redo_tupe, request.startDate, request.endDate, connection)
         redo_output_df = merge_with_redo(filtered_df, output)
         redo_output_df = redo_output_df.drop('REDO_CHECK', axis=1)
     except:
