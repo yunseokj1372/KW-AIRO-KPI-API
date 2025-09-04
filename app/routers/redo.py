@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/redo", tags=["redo"])
 
 class RedoInput(BaseModel):
-    start_date: str
-    end_date: str
+    startDate: str
+    endDate: str
 
 
 @router.post("/single")
