@@ -9,7 +9,17 @@ Experiments conducted in Python version 3.11.7
 ## Conda Environment
 
 ```
-conda create -n kpi python=3.11.7 pip
+wget https://repo.anaconda.com/miniconda/Miniconda3-py312_25.7.0-2-Linux-x86_64.sh
+
+bash ~/Miniconda3-py312_25.7.0-2-Linux-x86_64.sh
+
+/home/ubuntu/miniconda3/bin/conda init bash
+
+source ~/.bashrc
+```
+
+```
+printf "accept\naccept\nyes\n" conda create -n kpi python=3.11.7 pip 
 conda activate kpi
 ```
 ## Requirements
@@ -31,4 +41,9 @@ fastapi dev app/main.py
 
 For background running:
 uvicorn app.main:app --host localhost --port 8000
+
+For production running:
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+
