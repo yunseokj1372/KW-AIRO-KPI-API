@@ -5,6 +5,9 @@ import pandas as pd
 from app.db.queries import redo_input, redo_output
 from app.utils.process import main_filter, processing, merge_with_redo, get_excel_base64
 import logging
+import warnings
+warnings.filterwarnings("ignore")
+
 
 
 # Set up file logging
