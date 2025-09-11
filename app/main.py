@@ -12,7 +12,7 @@ app = FastAPI(
     ## Authentication
     All endpoints require an API key to be provided in the `X-API-Key` header.
     """,
-    version="1.0.0",
+    version="1.0.1",
     contact={
         "name": "AIRO Support",
         "email": "support@airo.com"
@@ -67,3 +67,33 @@ app.include_router(
 )
 def read_root():
     return {"message": "Welcome to AIRO's KPI app"}
+
+# Custom OpenAPI schema 
+def custom_openapi(): 
+    if app.openapi_schema: 
+        return app.openapi_schema 
+        
+    openapi_schema = get_openapi( 
+        title=app.title, 
+        version=app.version, 
+        description=app.description, 
+        routes=app.routes, 
+    ) 
+    
+    # Add security scheme 
+    openapi_schema["components"]["securitySchemes"] = { 
+        "ApiKeyHeader": { 
+            "type": "apiKey", 
+            "in": "header", 
+            "name": "X-API-Key", 
+            "description": "API key for authentication" 
+        } 
+    } 
+    
+    # Apply security globally 
+    openapi_schema["security"] = [{"ApiKeyHeader": []}] 
+    
+    app.openapi_schema = openapi_schema 
+    return app.openapi_schema 
+    
+    app.openapi = custom_openapi
