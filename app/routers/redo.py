@@ -136,6 +136,7 @@ def single_redo(request: RedoInput):
     
     try:
         logger.info("Retrieving ticket list for date range: %s to %s", request.startDate, request.endDate)
+
         df = redo_input(request.startDate, request.endDate, connection)
     except:
         logger.error("Error retrieving ticket list")
