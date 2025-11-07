@@ -2,11 +2,13 @@ from app.utils.process import validate_date_format
 import oracledb
 import pandas as pd
 
-def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
+def redo_input(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
     # Validate date formats as additional safety
     if not validate_date_format(start_date) or not validate_date_format(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
-    
+
+    accountNoQuery = redo_account(accountNo)
+
     query = """
     WITH filtered_tickets AS (
         SELECT t.* 
@@ -16,8 +18,9 @@ def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
         AND t.vendorid = 1
         AND t.systemid = 2
         AND t.servicetype = 'IH'
-    )
-    SELECT 
+    )""" + accountNoQuery
+
+    query += """SELECT 
         t.ticketno,
         wh.nickname,
         t.ACCOUNTNO,
@@ -100,3 +103,16 @@ def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection
         params[f'ticket_{i}'] = ticket
     
     return pd.read_sql(query, con=connection, params=params)
+
+
+def redo_account(accountNo: list):
+
+    if len(accountNo) == 1:
+        accountNoConverted = accountNo[0]
+        query = """AND accountno = :accountNoConverted"""
+    elif len(accountNo) ==0:
+        query = ""
+    else:
+        accountNoConverted = tuple(accountNo)
+        query = """AND accountno IN :accountNoConverted"""
+    return query
