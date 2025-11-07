@@ -48,7 +48,11 @@ class RedoInput(BaseModel):
         description="End date of the date range to retrieve tickets for. Must be in YYYY-MM-DD format.",
         example="2024-03-31"
     )
-
+    accountNo: list = Field(
+        ...,
+        description="List of account numbers to retrieve tickets for. Must be in a list of strings.",
+        example=["1234567890", "1234567891"]
+    )
     class Config:
         schema_extra = {
             "example": {
