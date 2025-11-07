@@ -127,7 +127,15 @@ class RedoInput(BaseModel):
     }
 )
 def singleRedo(request: RedoInput):
-    connection = getConnection()
+    try:
+        logger.info("Connecting to database")
+        connection = getConnection()
+    except:
+        logger.error("Error connecting to database")
+        raise HTTPException(status_code=500, detail="Error connecting to database")
+    finally:
+        connection.close()
+
     try:
         logger.info("Processing data")
         result = singleRedoService(request, connection)
