@@ -1,14 +1,22 @@
 from app.utils.process import validateDateFormat
 import oracledb
 import pandas as pd
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
     # Validate date formats as additional safety
     if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
 
+    logger.info(f"Start date: {start_date}")
+    logger.info(f"End date: {end_date}")
+    logger.info(f"Account no: {accountNo}")
     accountNoQuery = redoAccount(accountNo)
-    
+    logger.info(f"Account no query: {accountNoQuery}")
+
     query = """
     WITH filtered_tickets AS (
         SELECT t.* 
