@@ -26,7 +26,7 @@ api_key_header = APIKeyHeader(
     description="API key for authentication. Must be provided in the `X-API-Key` header."
 )
 
-async def verify_api_key(api_key: str = Security(api_key_header)):
+async def verifyApiKey(api_key: str = Security(api_key_header)):
     if api_key != settings.secret_key:
         raise HTTPException(
             status_code=410,
@@ -37,12 +37,12 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
 # Add routers to the app
 app.include_router(
     redo.router,
-    dependencies=[Depends(verify_api_key)]
+    dependencies=[Depends(verifyApiKey)]
 ) 
 
 # Root endpoint
 @app.get("/", 
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(verifyApiKey)],
     summary="Root endpoint",
     description="Returns a welcome message to confirm the API is running.",
     response_description="Welcome message",
@@ -65,11 +65,11 @@ app.include_router(
         }
     }
 )
-def read_root():
+def readRoot():
     return {"message": "Welcome to AIRO's KPI app"}
 
 # Custom OpenAPI schema 
-def custom_openapi(): 
+def customOpenapi(): 
     if app.openapi_schema: 
         return app.openapi_schema 
         
@@ -96,4 +96,4 @@ def custom_openapi():
     app.openapi_schema = openapi_schema 
     return app.openapi_schema 
     
-    app.openapi = custom_openapi
+    app.openapi = customOpenapi

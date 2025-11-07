@@ -4,13 +4,13 @@ import re
 import io
 import base64
 
-def validate_date_format(date_string):
+def validateDateFormat(date_string):
     """Validate that date string matches YYYY-MM-DD format"""
     pattern = r'^\d{4}-\d{2}-\d{2}$'
     return bool(re.match(pattern, date_string))
 
 
-def main_filter(df):
+def mainFilter(df):
     # Combine all filters into one operation
     mask = (
         (df['SERVICETYPE'] == "IH") & 
@@ -52,19 +52,19 @@ def processing(df, serial):
     
     return df
 
-def merge_with_redo(filtered_df,redo_df):
+def mergeWithRedo(filtered_df,redo_df):
     result = pd.merge(filtered_df, redo_df, how='left', left_on='REDO_CHECK', right_on='REDOTKTNO')
     return result
     
-def test_date_validation():
-    assert validate_date_format("2024-01-15") == True
-    assert validate_date_format("2024-1-15") == False  # Should fail
-    assert validate_date_format("'; DROP TABLE--") == False  # SQL injection attempt
-    assert validate_date_format("2024-01-32") == False  # Invalid date
+def testDateValidation():
+    assert validateDateFormat("2024-01-15") == True
+    assert validateDateFormat("2024-1-15") == False  # Should fail
+    assert validateDateFormat("'; DROP TABLE--") == False  # SQL injection attempt
+    assert validateDateFormat("2024-01-32") == False  # Invalid date
 
 
 
-def get_excel_base64(df):
+def getExcelBase64(df):
 
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
