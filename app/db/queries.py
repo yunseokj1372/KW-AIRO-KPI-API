@@ -1,11 +1,13 @@
-from app.utils.process import validate_date_format
+from app.utils.process import validateDateFormat
 import oracledb
 import pandas as pd
 
-def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
+def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
     # Validate date formats as additional safety
-    if not validate_date_format(start_date) or not validate_date_format(end_date):
+    if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
+
+    accountNoQuery = redoAccount(accountNo)
     
     query = """
     WITH filtered_tickets AS (
@@ -16,7 +18,8 @@ def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
         AND t.vendorid = 1
         AND t.systemid = 2
         AND t.servicetype = 'IH'
-    )
+    """ + accountNoQuery + """
+)
     SELECT 
         t.ticketno,
         wh.nickname,
@@ -49,9 +52,9 @@ def redo_input(start_date: str, end_date: str, connection: oracledb.Connection):
     """
     return pd.read_sql(query, con=connection, params={'start_date': start_date, 'end_date': end_date})
 
-def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection: oracledb.Connection):
+def redoOutput(tuple_tickets: tuple, start_date: str, end_date: str, connection: oracledb.Connection):
     # Validate date formats
-    if not validate_date_format(start_date) or not validate_date_format(end_date):
+    if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
     
     # Validate and sanitize ticket numbers (should be integers)
@@ -116,3 +119,15 @@ def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection
         return pd.DataFrame()
     
     return pd.concat(all_results, ignore_index=True)
+
+def redoAccount(accountNo: list):
+
+    if len(accountNo) == 1:
+        accountNoConverted = accountNo[0]
+        query = f"AND accountno = '{accountNoConverted}'"
+    elif len(accountNo) ==0:
+        query = ""
+    else:
+        accountNoConverted = tuple(accountNo)
+        query = f"AND accountno IN {accountNoConverted}"
+    return query
