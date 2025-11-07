@@ -8,7 +8,13 @@ import oracledb
 warnings.filterwarnings("ignore")
 
 def singleRedoService(request: RedoInput, connection: oracledb.Connection):
-    df = redoInput(request.startDate, request.endDate, request.accountNo, connection)
+
+    try:
+        logger.info("Retrieving ticket list from database")
+        df = redoInput(request.startDate, request.endDate, request.accountNo, connection)
+    except:
+        logger.error("Error retrieving ticket list from database")
+        raise HTTPException(status_code=401, detail="Error retrieving ticket list from database")
 
     try:
         logger.info("Filtering data")
