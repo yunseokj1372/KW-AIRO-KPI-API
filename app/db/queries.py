@@ -1,13 +1,19 @@
 from app.utils.process import validateDateFormat
 import oracledb
 import pandas as pd
+import logging
+logger = logging.getLogger(__name__)
 
 def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
     # Validate date formats as additional safety
     if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
 
+    logger.info(f"Start Date: {start_date}")
+    logger.info(f"End Date: {end_date}")
+    logger.info(f"Account No: {accountNo}")
     accountNoQuery = redoAccount(accountNo)
+    logger.info(f"Account No Query: {accountNoQuery}")
 
     query = """
     WITH filtered_tickets AS (
@@ -18,9 +24,9 @@ def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracl
         AND t.vendorid = 1
         AND t.systemid = 2
         AND t.servicetype = 'IH'
-    )""" + accountNoQuery
-
-    query += """SELECT 
+    """ + accountNoQuery + """
+)
+    SELECT 
         t.ticketno,
         wh.nickname,
         t.ACCOUNTNO,
@@ -125,10 +131,10 @@ def redoAccount(accountNo: list):
 
     if len(accountNo) == 1:
         accountNoConverted = accountNo[0]
-        query = """AND accountno = :accountNoConverted"""
+        query = f"AND accountno = '{accountNoConverted}'"
     elif len(accountNo) ==0:
         query = ""
     else:
         accountNoConverted = tuple(accountNo)
-        query = """AND accountno IN :accountNoConverted"""
+        query = f"AND accountno IN {accountNoConverted}"
     return query

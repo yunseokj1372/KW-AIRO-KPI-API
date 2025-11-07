@@ -109,10 +109,26 @@ class RedoInput(BaseModel):
             }
         },
         404: {
-            "description": "Error compiling data",
+            "description": "Error getting redo data",
             "content": {
                 "application/json": {
-                    "example": {"detail": "Error compiling data"}
+                    "example": {"detail": "Error getting redo data"}
+                }
+            }
+        },
+        405: {
+            "description": "Error merging data",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error merging data"}
+                }
+            }
+        },
+        406: {
+            "description": "Error getting excel base64",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error getting excel base64"}
                 }
             }
         },
@@ -133,16 +149,9 @@ def singleRedo(request: RedoInput):
     except:
         logger.error("Error connecting to database")
         raise HTTPException(status_code=500, detail="Error connecting to database")
-    finally:
-        connection.close()
 
-    try:
-        logger.info("Processing data")
-        result = singleRedoService(request, connection)
-    except:
-        logger.error("Error processing data")
-        raise HTTPException(status_code=501, detail="Error processing data")
-    finally:
-        connection.close()
+    result = singleRedoService(request, connection)
+
+    connection.close()
 
     return result
