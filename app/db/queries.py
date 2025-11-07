@@ -72,35 +72,51 @@ def redo_output(tuple_tickets: tuple, start_date: str, end_date: str, connection
         # Return empty DataFrame if no valid tickets
         return pd.DataFrame()
     
-    # Create parameterized query with proper placeholders for IN clause
-    placeholders = ','.join([f':ticket_{i}' for i in range(len(sanitized_tickets))])
+    # Process tickets in chunks of 1000
+    chunk_size = 1000
+    all_results = []
     
-    query = f"""
-    SELECT t.ticketno AS redotktno ,wh.nickname AS redoloc,t.ACCOUNTNO AS redoacct
-    ,t.ASSIGNDTIME AS redoassigndate
-    , t.completedtime AS redocalccomplete
-    ,to_char(t.COMPLETEDTIME, 'mm/dd/yyyy') AS redocompletedate ,to_char(t.COMPLETEDTIME, 'yyyy_mm') AS redocompletemonth
-    ,t.TECHID , U.FirstName || ' ' || U.LastName AS redotechname
-    FROM opticket t
-    INNER JOIN nspwarehouses wh ON wh.warehouseid = t.warehouseid
-    INNER JOIN opbase b ON b.id = t.id
-    INNER JOIN nspusers u ON t.techid = u.userid
-    WHERE t.COMPLETEDTIME BETWEEN TO_DATE(:start_date, 'YYYY-MM-DD') AND TO_DATE(:end_date, 'YYYY-MM-DD')
-    AND t.vendorid = 1
-    AND t.systemid = 2
-    AND t.servicetype = 'IH'
-    AND t.TICKETNO IN ({placeholders})
-    """
+    for i in range(0, len(sanitized_tickets), chunk_size):
+        chunk = sanitized_tickets[i:i + chunk_size]
+        
+        # Create parameterized query with proper placeholders for IN clause
+        placeholders = ','.join([f':ticket_{j}' for j in range(len(chunk))])
+        
+        query = f"""
+        SELECT t.ticketno AS redotktno ,wh.nickname AS redoloc,t.ACCOUNTNO AS redoacct
+        ,t.ASSIGNDTIME AS redoassigndate
+        , t.completedtime AS redocalccomplete
+        ,to_char(t.COMPLETEDTIME, 'mm/dd/yyyy') AS redocompletedate ,to_char(t.COMPLETEDTIME, 'yyyy_mm') AS redocompletemonth
+        ,t.TECHID , U.FirstName || ' ' || U.LastName AS redotechname
+        FROM opticket t
+        INNER JOIN nspwarehouses wh ON wh.warehouseid = t.warehouseid
+        INNER JOIN opbase b ON b.id = t.id
+        INNER JOIN nspusers u ON t.techid = u.userid
+        WHERE t.COMPLETEDTIME BETWEEN TO_DATE(:start_date, 'YYYY-MM-DD') AND TO_DATE(:end_date, 'YYYY-MM-DD')
+        AND t.vendorid = 1
+        AND t.systemid = 2
+        AND t.servicetype = 'IH'
+        AND t.TICKETNO IN ({placeholders})
+        """
+        
+        # Build parameters dictionary for this chunk
+        params = {
+            'start_date': start_date,
+            'end_date': end_date
+        }
+        
+        # Add ticket parameters for this chunk
+        for j, ticket in enumerate(chunk):
+            params[f'ticket_{j}'] = ticket
+        
+        # Execute query for this chunk
+        chunk_df = pd.read_sql(query, con=connection, params=params)
+        if not chunk_df.empty:
+            all_results.append(chunk_df)
     
-    # Build parameters dictionary
-    params = {
-        'start_date': start_date,
-        'end_date': end_date
-    }
-    
-    # Add ticket parameters
-    for i, ticket in enumerate(sanitized_tickets):
-        params[f'ticket_{i}'] = ticket
+    # Combine all results
+    if not all_results:
+        return pd.DataFrame()
     
     return pd.read_sql(query, con=connection, params=params)
 

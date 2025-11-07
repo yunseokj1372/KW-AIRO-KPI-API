@@ -19,6 +19,7 @@ source ~/.bashrc
 ```
 
 ```
+export PYTHONDONTWRITEBYTECODE=1
 printf "accept\naccept\nyes\n" conda create -n kpi python=3.11.7 pip 
 conda activate kpi
 ```
