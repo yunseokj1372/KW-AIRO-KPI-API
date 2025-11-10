@@ -6,6 +6,7 @@ from app.db.queries import redoInput, redoOutput
 from app.utils.process import mainFilter, processData, mergeWithRedo, getExcelBase64
 import logging
 import warnings
+import asyncio
 warnings.filterwarnings("ignore")
 
 
@@ -180,81 +181,116 @@ class RedoInput(BaseModel):
         }
     }
 )
-def singleRedo(request: RedoInput):
+async def singleRedo(request: RedoInput):
+    connection = None
     try:
         logger.info("Connecting to database")
-        connection = getConnection()
-    except:
-        logger.error("Error connecting to database")
+        # Run connection in thread pool since it's blocking I/O
+        connection = await asyncio.to_thread(getConnection)
+    except Exception as e:
+        logger.error(f"Error connecting to database: {e}")
         raise HTTPException(status_code=500, detail="Error connecting to database")
     
     try:
         logger.info("Retrieving ticket list for date range: %s to %s", request.startDate, request.endDate)
 
-        df = redoInput(request.startDate, request.endDate, request.accountNo, connection)
-    except:
-        logger.error("Error retrieving ticket list")
+        df = await redoInput(request.startDate, request.endDate, request.accountNo, connection)
+    except Exception as e:
+        logger.error(f"Error retrieving ticket list: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=401, detail="Error retrieving data from database")
     
     try:
         logger.info("Filtering data")
-        df = mainFilter(df)
-    except:
-        logger.error("Error filtering data")
+        df = await mainFilter(df)
+    except Exception as e:
+        logger.error(f"Error filtering data: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=402, detail="Error filtering data")
     
     try:
         logger.info("Processing data")
         df['REDO_CHECK'] = None
         serial = list(df['SERIALNO'].unique())
-        filtered_df = processData(df, serial)
-    except:
-        logger.error("Error processing data")
+        filtered_df = await processData(df, serial)
+    except Exception as e:
+        logger.error(f"Error processing data: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=403, detail="Error processing data")
     
     try:
         logger.info("Compiling data")
         separate_df = filtered_df.dropna(subset=['REDO_CHECK'])
-    except:
-        logger.error("Error compiling data")
+    except Exception as e:
+        logger.error(f"Error compiling data: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=404, detail="Error compiling separate data")
+    
     try:
         logger.info("Compiling redo data")
         tupe = tuple(separate_df['REDO_CHECK'].astype(int))
         redo_tupe = tuple(f'{x}' for x in tupe)
-        output = redoOutput(redo_tupe, request.startDate, request.endDate, connection)
+        output = await redoOutput(redo_tupe, request.startDate, request.endDate, connection)
 
         if output.empty:
             logger.info("No redo data found")
+            if connection:
+                await asyncio.to_thread(connection.close)
             raise HTTPException(status_code=405, detail="No redo data found")
         else:
             logger.info(f"Redo data found: {output.shape[0]} rows")
             logger.info(f"Redo data columns: {list(output.columns)}")
-    except:
-        logger.error("Error compiling redo data")
+    except Exception as e:
+        logger.error(f"Error compiling redo data: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=406, detail="Error compiling redo data")
+    
     try:
         logger.info("Merging data")
-        redo_output_df = mergeWithRedo(filtered_df, output)
-    except:
-        logger.error("Error merging data")
+        redo_output_df = await mergeWithRedo(filtered_df, output)
+    except Exception as e:
+        logger.error(f"Error merging data: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=407, detail="Error merging data")
+    
     try:
         logger.info("Dropping redo check column")
         redo_output_df = redo_output_df.drop('REDO_CHECK', axis=1)
-    except:
-        logger.error("Error dropping redo check column")
+    except Exception as e:
+        logger.error(f"Error dropping redo check column: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=408, detail="Error dropping redo check column")
+    
     try:
         logger.info(f"Successfully processed redo data. Output shape: {redo_output_df.shape}. Date range: {request.startDate} to {request.endDate}")
-    except:
-        logger.error("Error logging success")
+    except Exception as e:
+        logger.error(f"Error logging success: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=409, detail="Error logging success")
 
     try:
         logger.info("Getting excel base64")
-        excel_base64 = getExcelBase64(redo_output_df)
-    except:
-        logger.error("Error getting excel base64")
+        excel_base64 = await getExcelBase64(redo_output_df)
+    except Exception as e:
+        logger.error(f"Error getting excel base64: {e}")
+        if connection:
+            await asyncio.to_thread(connection.close)
         raise HTTPException(status_code=410, detail="Error getting excel base64")
+    
+    # Close the connection
+    try:
+        if connection:
+            await asyncio.to_thread(connection.close)
+            logger.info("Database connection closed successfully")
+    except Exception as e:
+        logger.warning(f"Error closing database connection: {e}")
+    
     return excel_base64

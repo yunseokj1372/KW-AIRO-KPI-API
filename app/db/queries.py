@@ -1,12 +1,12 @@
 from app.utils.process import validateDateFormat
 import oracledb
 import pandas as pd
+import asyncio
 import logging
-
 
 logger = logging.getLogger(__name__)
 
-def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
+async def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracledb.Connection):
     # Validate date formats as additional safety
     if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
@@ -58,9 +58,10 @@ def redoInput(start_date: str, end_date: str, accountNo: list, connection: oracl
     INNER JOIN opbase b ON b.id = t.id
     INNER JOIN nspusers u ON t.techid = u.userid
     """
-    return pd.read_sql(query, con=connection, params={'start_date': start_date, 'end_date': end_date})
+    # Run pandas read_sql in thread pool to avoid blocking
+    return await asyncio.to_thread(pd.read_sql, query, con=connection, params={'start_date': start_date, 'end_date': end_date})
 
-def redoOutput(tuple_tickets: tuple, start_date: str, end_date: str, connection: oracledb.Connection):
+async def redoOutput(tuple_tickets: tuple, start_date: str, end_date: str, connection: oracledb.Connection):
     # Validate date formats
     if not validateDateFormat(start_date) or not validateDateFormat(end_date):
         raise ValueError(f"Invalid date format. Expected YYYY-MM-DD, got start: {start_date}, end: {end_date}")
@@ -117,8 +118,8 @@ def redoOutput(tuple_tickets: tuple, start_date: str, end_date: str, connection:
         for j, ticket in enumerate(chunk):
             params[f'ticket_{j}'] = ticket
         
-        # Execute query for this chunk
-        chunk_df = pd.read_sql(query, con=connection, params=params)
+        # Execute query for this chunk in thread pool
+        chunk_df = await asyncio.to_thread(pd.read_sql, query, con=connection, params=params)
         if not chunk_df.empty:
             all_results.append(chunk_df)
     
