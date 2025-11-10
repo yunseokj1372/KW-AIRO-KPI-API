@@ -243,6 +243,8 @@ async def singleRedo(request: RedoInput):
 
         output = await redoOutput(redo_tupe, request.startDate, request.endDate, connection)
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error compiling redo data: {e}")
         if connection:
