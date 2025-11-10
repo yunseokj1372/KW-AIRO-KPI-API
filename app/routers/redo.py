@@ -123,7 +123,7 @@ class RedoInput(BaseModel):
                 }
             }
         },
-        405: {
+        460: {
             "description": "No redo data found",
             "content": {
                 "application/json": {
@@ -239,7 +239,7 @@ async def singleRedo(request: RedoInput):
 
         if redo_tupe == ():
             logger.info("No redo data found")
-            raise HTTPException(status_code=405, detail="No redo data found")
+            raise HTTPException(status_code=460, detail="No redo data found")
 
         output = await redoOutput(redo_tupe, request.startDate, request.endDate, connection)
         
