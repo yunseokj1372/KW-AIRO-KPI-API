@@ -233,17 +233,16 @@ async def singleRedo(request: RedoInput):
     try:
         logger.info("Compiling redo data")
         tupe = tuple(separate_df['REDO_CHECK'].astype(int))
+        logger.info(f"Redo tuple: {tupe}")
         redo_tupe = tuple(f'{x}' for x in tupe)
-        output = await redoOutput(redo_tupe, request.startDate, request.endDate, connection)
 
-        if output.empty:
+
+        if redo_tupe == ():
             logger.info("No redo data found")
-            if connection:
-                await asyncio.to_thread(connection.close)
             raise HTTPException(status_code=405, detail="No redo data found")
-        else:
-            logger.info(f"Redo data found: {output.shape[0]} rows")
-            logger.info(f"Redo data columns: {list(output.columns)}")
+
+        output = await redoOutput(redo_tupe, request.startDate, request.endDate, connection)
+        
     except Exception as e:
         logger.error(f"Error compiling redo data: {e}")
         if connection:
